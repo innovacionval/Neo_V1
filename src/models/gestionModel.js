@@ -16,7 +16,7 @@ async function obtenerGestiones() {
  * @returns {Promise<Object|null>} La gestión correspondiente o null si no existe.
  */
 async function obtenerGestionPorId(idGestion) {
-    const query = 'SELECT * FROM gestion WHERE idgestion = ?';
+    const query = 'SELECT * FROM gestion WHERE idgiitic = ?';
     const [result] = await db.query(query, [idGestion]);
     return result.length > 0 ? result[0] : null;
 }
@@ -28,13 +28,14 @@ async function obtenerGestionPorId(idGestion) {
  * @returns {Promise<number>} El ID de la gestión insertada.
  */
 async function agregarGestion(gestion) {
-    const query = 'INSERT INTO gestion (idgestion, idcredito, fechagestion, accion, gestion, fecharegistro) VALUES (?, ?, ?, ?, ?, NOW())';
+    const query = 'INSERT INTO gestion (idgestion, idcredito, fechagestion, accion, gestion, idgiitic, fecharegistro) VALUES (?, ?, ?, ?, ?, ?, NOW())';
     const params = [
         gestion.idgestion,
         gestion.idcredito,
         gestion.fechagestion,
         gestion.accion,
-        gestion.gestion
+        gestion.gestion,
+        gestion.idgiitic
     ];
     const [result] = await db.query(query, params);
     return result.insertId; // Retornar el ID generado por la base de datos.
@@ -42,26 +43,24 @@ async function agregarGestion(gestion) {
 
 /**
  * Actualizar una gestión existente.
- * @param {number} idGestion - ID de la gestión.
+ * @param {number} idgiitic - ID de la gestión.
  * @param {Object} gestion - Objeto con los datos actualizados de la gestión.
  * @returns {Promise<void>}
  */
-async function actualizarGestion(idGestion, gestion) {
+async function actualizarGestion(idgiitic, gestion) {
     const query = `
         UPDATE gestion 
         SET idcredito = ?, 
             fechagestion = ?, 
             accion = ?, 
             gestion = ?, 
-            fecharegistro = ?
-        WHERE idgestion = ?`;
+        WHERE idgiitic = ?`;
     const params = [
         gestion.idcredito,
         gestion.fechagestion,
         gestion.accion,
         gestion.gestion,
-        gestion.fecharegistro,
-        idGestion
+        idgiitic
     ];
     await db.query(query, params);
 }
@@ -109,11 +108,11 @@ async function obtenerGestionesGiitic() {
 }
 
 /**
- * Obtener una gestión por su ID CREDITO en giitic.
+ * Obtener las gestiónes por su ID CREDITO en giitic.
  * @param {number} idCredito - ID del credito.
- * @returns {Promise<Object|null>} La gestión correspondiente o null si no existe.
+ * @returns {Promise<Object|null>} La gestiónes correspondiente o null si no existe.
  */
-async function obtenerGestionGiiticPorId(idCredito) {
+async function obtenerGestionesGiiticPorId(idCredito) {
     const query = `
     SELECT 
         b.llave as idgestion,
@@ -129,10 +128,10 @@ async function obtenerGestionGiiticPorId(idCredito) {
         cuentacobrarpagar c ON b.tarea = c.tarea
     LEFT JOIN 
         carteradeuda d ON c.carteradeuda = d.llave
-    WHERE d.id = ? AND b.registro > '2024-12-13 00:00:00'`;
+    WHERE d.id = ? and b.registro >= '2025-03-05 00:00:00'`;
     
     const [result] = await dbgiitic.query(query, [idCredito]);
-    return result.length > 0 ? result[0] : null;
+    return result.length > 0 ? result : null;
 }
 
 module.exports = {
@@ -144,5 +143,5 @@ module.exports = {
     obtenerRegistrosPendienteswurth,
     marcarComoEnviadowurth,
     obtenerGestionesGiitic,
-    obtenerGestionGiiticPorId
+    obtenerGestionesGiiticPorId
 };

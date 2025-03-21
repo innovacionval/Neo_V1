@@ -90,10 +90,32 @@ async function eliminarCliente(id) {
     await pool.query('DELETE FROM tercero WHERE idcliente = ?', [id]);
 }
 
+/**
+ * Obtiene los registros de la tabla `tercero` que no han sido exportados (giitic = 'N').
+ * @returns {Promise<Array>} Lista de registros pendientes de exportación.
+ */
+async function obtenerRegistrosPendientesGiitic() {
+    const query = "SELECT * FROM tercero WHERE giitic = 'N'";
+    const [rows] = await pool.query(query);
+    return rows;
+}
+
+/**
+ * Marca un registro como exportado cambiando `enviado` a 'S'.
+ * @param {number} id - El ID del registro a actualizar.
+ * @returns {Promise<void>} 
+ */
+async function marcarComoEnviadoGiitic(id) {
+    const query = "UPDATE tercero SET giitic = 'S' WHERE idcliente = ?";
+    await pool.query(query, [id]);
+}
+
 module.exports = {
     obtenerClientes,
     obtenerClientePorId,
     agregarCliente,
     actualizarCliente,
     eliminarCliente,
+    marcarComoEnviadoGiitic,
+    obtenerRegistrosPendientesGiitic,
 };

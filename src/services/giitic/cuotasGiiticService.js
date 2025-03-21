@@ -58,6 +58,10 @@ function transformarCuota(datosDeuda) {
 async function sincronizarCuotas() {
     try {
         const deudasLocales = await creditoModel.obtenerCreditos(); // Obtener las deudas o creditos locales
+        
+        //filtrar solo deudass de wurth
+        const deudasFiltradas = deudasLocales.filter(credito => credito.fuente === 'WURTH');
+
         const pLimit = (await import('p-limit')).default;
         const limit = pLimit(10); // Limitar las promesas concurrentes a 10
         const resultados = [];
@@ -66,14 +70,14 @@ async function sincronizarCuotas() {
         let insertados = 0;
 
         // Procesar cada deuda local
-        const promesas = deudasLocales.map((deuda) =>
+        const promesas = deudasFiltradas.map((deuda) =>
             limit(async () => {
                 try {
                     const llavedeuda = await creditoModel.obtenerllaveDeudaGiitic(deuda.idcredito);
                     if (!llavedeuda) {
                         throw new Error(`No se pudo recuperar la llave en Giitic de la deuda: ${deuda.idcredito}`);
                     }
-                    const datosDeuda = await obtenerDatosDeudaGiitic(llavedeuda);
+                    const datosDeuda = await obtenerDatosDeudaGiitic(llavedeuda.llave);
                     if (!datosDeuda) {
                         throw new Error('Datos no encontrados en la API.');
                     }
@@ -82,6 +86,7 @@ async function sincronizarCuotas() {
                     const deudaExistente = await cuotaModel.obtenerCuotaPorIdCredito(cuotaTransformada.idcredito);
 
                     if (deudaExistente) {
+                        cuotaTransformada.wurth = 'N';
                         await cuotaModel.actualizarCuotaPorIdCredito(cuotaTransformada.idcredito, cuotaTransformada);
                         actualizados++;
                         resultados.push({ id: cuotaTransformada.idcredito, status: 'actualizado' });

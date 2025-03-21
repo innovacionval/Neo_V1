@@ -2,9 +2,11 @@ const axios = require('axios');
 const cuotaModel = require('../../models/cuotaModel'); // Modelo para interactuar con la tabla 'cuota'
 const { obtenerToken } = require('../../models/authtokenModel');
 const config = require('../../config/config');
+const { format } = require('date-fns');
 
 // URL de la API para enviar datos de cuota
 const API_URL_CUOTA = config.API_URL_WCI;
+const LLAVE_FINCOVAL = config.LLAVE_FINCOVAL;
 
 /**
  * Envía un lote de datos a la API externa.
@@ -28,12 +30,15 @@ async function enviarLoteDatosCuota(lote) {
             // Configuración de las cabeceras
             const headers = {
                 'Content-Type': 'application/json',
-                'Accept': 'text/html',
+                'Accept': 'application/json',
                 'DOLAPIKEY': tokenData.token, // Token necesario para autenticarse
             };
 
             // Llamada POST a la API con los datos del registro
-            const response = await axios.post(API_URL_CUOTA, registro, { headers });
+            registro.idempresa = LLAVE_FINCOVAL;
+            registro.fechaactualizacion = formatDate(registro.fechaactualizacion);
+            const registroJson = JSON.stringify(registro);
+            const response = await axios.post(API_URL_CUOTA, registroJson, { headers });
 
             if (response.status === 200 || response.status === 201) {
                 resultados.push({ idcuota: registro.idcuota, status: 'enviado' });
@@ -101,6 +106,10 @@ async function sincronizarCuota() {
     } catch (err) {
         console.error('Error durante la sincronización de cuota:', err);
     }
+}
+
+function formatDate(fecha) {
+    return format(new Date(fecha), 'yyyy-MM-dd');
 }
 
 module.exports = {

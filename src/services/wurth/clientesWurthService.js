@@ -31,7 +31,7 @@ async function obtenerClientesDeWurth() {
             params: {
                 sortfield: 'siret',
                 sortorder: 'ASC',
-                limit: 4000
+                limit: 100000
             }
         });
 
@@ -79,6 +79,8 @@ async function sincronizarClientes() {
                 limit(async () => {
                     try {
                         cliente = sanitizeObject(cliente); // Corregir valores vacíos
+                        cliente.fuente = 'WURTH';
+                        
                         const clienteExistente = await clienteModel.obtenerClientePorId(cliente.idcliente);
                         
                         if (clienteExistente) {

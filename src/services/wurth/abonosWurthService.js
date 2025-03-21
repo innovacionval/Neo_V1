@@ -32,7 +32,7 @@ async function obtenerAbonosDeWurth() {
             params: {
                 sortfield: 'siret',
                 sortorder: 'ASC',
-                limit: 4000
+                limit: 100000
             }
         });
 
@@ -66,12 +66,17 @@ async function sincronizarAbonos() {
         // Contadores para abonos actualizados e insertados
         let actualizados = 0;
         let insertados = 0;
+        let omitidos = 0;
         const resultados = []; // Array para almacenar los resultados de las promesas
         const errores = []; // Array para capturar errores con detalle
+        
+        console.log('CANTIDAD DE ABONOS EN WURTH :');
+        console.log(abonosExternos.length);
 
         // Iterar por los lotes de abonos
         for (let i = 0; i < abonosExternos.length; i += abonosPorLote) {
             const loteAbonos = abonosExternos.slice(i, i + abonosPorLote);
+            const fechaLimite = new Date("2025-03-01"); // Fecha límite establecida
 
             // Procesar abonos en paralelo, pero limitando la cantidad de promesas concurrentes
             const promesas = loteAbonos.map(abono =>
@@ -79,6 +84,12 @@ async function sincronizarAbonos() {
                     try {
                         abono = sanitizeObject(abono); // Corregir valores vacíos
                         abono.observaciones = abono.obs;
+                        // **Validación de fecha**
+                        if (new Date(abono.fechapago) < fechaLimite) {
+                            omitidos++;
+                            return { status: 'omitido', id: abono.idtransaccion };
+                        }
+
                         const creditoAsociado = await creditoModel.obtenerCreditoPorId(abono.idcredito);
 
                         if (!creditoAsociado) {
@@ -87,21 +98,25 @@ async function sincronizarAbonos() {
                         const abonoExistente = await abonoModel.obtenerAbonoPorId(abono.idtransaccion);
 
                         if (abonoExistente) {
-                            await abonoModel.actualizarAbono(abono.idabono, abono);
+                            await abonoModel.actualizarAbono(abono.idtransaccion, abono);
                             actualizados++;
-                            return { status: 'actualizado', id: abono.idabono };
+                            if(abono.idtransaccion === 'R2-842127-1'){
+                                console.log('ABONO ACTUALIZADO R2-842127-1 :');
+                                console.log(JSON.stringify(abono));
+                            }
+                            return { status: 'actualizado', id: abono.idtransaccion };
                         } else {
                             await abonoModel.agregarAbono(abono);
                             insertados++;
-                            return { status: 'insertado', id: abono.idabono };
+                            return { status: 'insertado', id: abono.idtransaccion };
                         }
                     } catch (error) {
                         errores.push({
-                            id: abono.idabono,
+                            id: abono.idtransaccion,
                             mensaje: error.message,
                             abono,
                         });
-                        return { status: 'error', id: abono.idabono, error: error.message };
+                        return { status: 'error', id: abono.idtransaccion, error: error.message };
                     }
                 })
             );
@@ -127,6 +142,7 @@ async function sincronizarAbonos() {
         Resumen de sincronización de abonos:
         Abonos insertados: ${insertados}
         Abonos actualizados: ${actualizados}
+        Abonos omitidos por fecha: ${omitidos}
         Abonos con errores: ${errores.length}
         Errores:`;
 

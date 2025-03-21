@@ -8,7 +8,7 @@ const creditoModel = require('../../models/creditoModel');
  */
 function transformarGestion(datosGestion) {
     return {
-        idgestion: datosGestion.idgestion,
+        idgiitic: datosGestion.idgestion,
         idcredito: datosGestion.idcredito,
         tarea: datosGestion.tarea,
         fechagestion: datosGestion.fechagestion,
@@ -25,6 +25,8 @@ async function sincronizarGestiones() {
     try {
         // Obtener los créditos locales para sincronizar sus gestiones
         const creditosLocales = await creditoModel.obtenerCreditos(); // Debe implementar la función para obtener los créditos locales
+        //filtrar solo deudass de wurth
+        const deudasFiltradas = creditosLocales.filter(credito => credito.fuente === 'WURTH');
         const pLimit = (await import('p-limit')).default;
         const limit = pLimit(10); // Limitar las promesas concurrentes a 10
         const resultados = [];
@@ -33,29 +35,32 @@ async function sincronizarGestiones() {
         let insertados = 0;
 
         // Procesar cada crédito local para sincronizar sus gestiones
-        const promesas = creditosLocales.map((credito) =>
+        const promesas = deudasFiltradas.map((credito) =>
             limit(async () => {
                 try {
-                    const gestionGiitic = await gestionModel.obtenerGestionGiiticPorId(credito.idcredito);
-                    if (!gestionGiitic) {
+                    const gestionesGiitic = await gestionModel.obtenerGestionesGiiticPorId(credito.idcredito);
+                    if (!gestionesGiitic) {
                         throw new Error(`No se encontraron gestiones para el crédito ID: ${credito.idcredito}`);
                     }
+                    
+                    for (const gestionGiitic of gestionesGiitic) {
+                        const gestionTransformada = transformarGestion(gestionGiitic);
+                        const gestionExistente = await gestionModel.obtenerGestionPorId(gestionTransformada.idgiitic);
 
-                    const gestionTransformada = transformarGestion(gestionGiitic);
-                    const gestionExistente = await gestionModel.obtenerGestionPorId(gestionTransformada.idgestion);
-
-                    if (gestionExistente) {
-                        await gestionModel.actualizarGestion(gestionTransformada.idgestion, gestionTransformada);
-                        actualizados++;
-                        resultados.push({ id: credito.idcredito, status: 'actualizado' });
-                    } else {
-                        await gestionModel.agregarGestion(gestionTransformada);
-                        insertados++;
-                        resultados.push({ id: gestionTransformada.idgestion, status: 'insertado' });
+                        if (gestionExistente) {
+                            await gestionModel.actualizarGestion(gestionTransformada.idgiitic, gestionTransformada);
+                            actualizados++;
+                            resultados.push({ id: credito.idcredito, status: 'actualizado' });
+                        } else {
+                            await gestionModel.agregarGestion(gestionTransformada);
+                            insertados++;
+                            resultados.push({ id: gestionTransformada.idgiitic, status: 'insertado' });
+                        }
                     }
                 } catch (error) {
                     errores.push({
-                        id: gestionTransformada.idgestion,
+                        id: error.errno,
+                        creditoId: credito.idcredito,
                         mensaje: error.message,
                     });
                 }

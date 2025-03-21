@@ -15,7 +15,8 @@ async function enviarAbonosToGiitic() {
         const abonos = await abonoModel.obtenerRegistrosPendientesGiitic();
 
         // 1.2 Filtrar abonos si es necesario
-        const abonosFiltrados = abonos.filter(abono => abono.valor > 0); // Ejemplo de filtro
+        // const abonosFiltrados = abonos.filter(abono => abono.idtransaccion === 'R1-735681-1'); // Ejemplo de filtro
+        const abonosFiltrados = abonos;
 
         // 2. Transformar los datos al formato requerido por la API externa
         const abonosTransformados = abonosFiltrados.map(transformarAbono);
@@ -51,15 +52,25 @@ async function enviarAbonosToGiitic() {
  */
 function transformarAbono(abono) {
     return {
-        transaccion: abono.idabono,
-        consecutivocredito: abono.idcredito,
-        idtransaccion: abono.idtransaccion,
-        fechapago: formatDate(abono.fechapago),
-        fechaasiento: formatDate(abono.fechaasiento),
-        formapago: abono.formapago || 'No especificado',
-        valor: abono.valor,
-        obs: abono.observaciones || '',
-        fecharegistro: formatDate(abono.fecharegistro),
+        abonos:[
+            {
+                transaccion: abono.idtransaccion,
+                consecutivocredito: abono.idcredito,
+                tipodoc: 'credito',
+                fechapago: abono.fechapago,
+                fechadeasiento: abono.fechaasiento,
+                valortotal: abono.valor,
+                tipoabono: 'ADELANTAR',
+                observacion: abono.observaciones || '',
+                detallepago:[
+                    {
+                        valor: abono.valor,
+                        ubicacion: 'UBI_EXTERNA',
+                        formapago: 'Transferencia',
+                    }
+                ]
+            }
+        ]
     };
 }
 
@@ -70,22 +81,25 @@ function transformarAbono(abono) {
  */
 async function enviarAbonoToGiitic(abono) {
     try {
+        const idtransaccion = abono.abonos[0].transaccion;
         const abonoJson = JSON.stringify(abono);
         const response = await axios.post(API_URL_GIITIC_ABONOS, abonoJson, {
             headers: { 'Content-Type': 'application/json' },
         });
-
+        console.log(response.data.httpResponse);
+        console.log(response.data.mensaje);
+        console.log(idtransaccion);
         // Validar respuesta
         if (response.data.httpResponse === 200 && response.data.mensaje === 'OK') {
-            console.log(`Abono ${abono.transaccion} enviado exitosamente.`);
+            console.log(`Abono ${idtransaccion} enviado exitosamente.`);
             // Marcar como enviados en la base de datos los registros enviados con éxito
-            await abonoModel.marcarComoEnviadoGiitic(abono.transaccion);
-            return { abonoId: abono.transaccion, status: 'Enviado' };
+            await abonoModel.marcarComoEnviadoGiitic(idtransaccion);
+            return { abonoId: idtransaccion, status: 'Enviado' };
         } else {
-            throw new Error(`Error al enviar abono ${abono.transaccion}: ${response.data.mensaje}`);
+            throw new Error(`Error al enviar abono ${idtransaccion}: ${response.data.mensaje}`);
         }
     } catch (err) {
-        throw new Error(err.response?.data || err.message);
+        throw new Error(err.response?.data.mensaje || err.message);
     }
 }
 

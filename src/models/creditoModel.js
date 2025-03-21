@@ -17,8 +17,8 @@ async function obtenerCreditoPorId(id) {
 async function agregarCredito(datos) {
     const query = `
         INSERT INTO credito 
-        (idempresa, idcredito, idcliente, idrepresentantelegal, idcodeudor, clasificacioncredito, fechacreacion, fechaprimerpago, valortotal, diasmora, periodicidad, numcuotas, interescorriente, diasdegracia, interesmora, observaciones, fecharegistro, idtercerointermediario, institucion, programa, periodoprograma,fuente)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (idempresa, idcredito, idcliente, idrepresentantelegal, idcodeudor, clasificacioncredito, fechacreacion, fechaprimerpago, valortotal, diasmora, periodicidad, numcuotas, interescorriente, diasdegracia, interesmora, observaciones, idtercerointermediario, institucion, programa, periodoprograma, fuente, fecharegistro)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
     const values = [
         datos.idempresa,
@@ -37,7 +37,6 @@ async function agregarCredito(datos) {
         datos.diasdegracia,
         datos.interesmora,
         datos.observaciones,
-        datos.fecharegistro,
         datos.idtercerointermediario,
         datos.institucion,
         datos.programa,
@@ -123,7 +122,7 @@ async function obtenerRegistrosPendientesGiitic() {
  * @returns {Promise<void>} 
  */
 async function marcarComoEnviadoGiitic(id) {
-    const query = "UPDATE gestion SET giitic = 'S' WHERE idcredito = ?";
+    const query = "UPDATE credito SET giitic = 'S' WHERE idcredito = ?";
     await pool.query(query, [id]);
 }
 

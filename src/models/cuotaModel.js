@@ -24,7 +24,7 @@ async function agregarCuota(datos) {
     const query = `
         INSERT INTO cuota 
         (idcredito, fechaactualizacion, saldointeres, saldomora, saldootros, saldohonorarios, saldovencido, pagodia, fecharegistro)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
     const values = [
         datos.idcredito,
@@ -35,7 +35,6 @@ async function agregarCuota(datos) {
         datos.saldohonorarios,
         datos.saldovencido,
         datos.pagodia,
-        datos.fecharegistro,
     ];
     await pool.query(query, values);
 }
@@ -83,7 +82,8 @@ async function actualizarCuotaPorIdCredito(id, datos) {
             saldohonorarios = ?, 
             saldovencido = ?, 
             pagodia = ?, 
-            fecharegistro = ?
+            fecharegistro = ?,
+            wurth = ? 
         WHERE idcredito = ?
     `;
     const values = [
@@ -95,6 +95,7 @@ async function actualizarCuotaPorIdCredito(id, datos) {
         datos.saldovencido,
         datos.pagodia,
         datos.fecharegistro,
+        datos.wurth,
         id,
     ];
     await pool.query(query, values);

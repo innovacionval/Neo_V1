@@ -26,7 +26,7 @@ app.get('/', (req, res) => {
 
 
 // Iniciar los cron jobs
-// iniciarCronJobs();
+iniciarCronJobs();
 
 
 const pool = require('./src/config/db');

@@ -16,7 +16,10 @@ async function enviarCreditosToGiitic() {
         const creditos = await creditoModel.obtenerRegistrosPendientesGiitic();
 
         // 1.2 Filtrar créditos según la lógica requerida (e.g., solo los educativos)
-        const creditosFiltrados = creditos.filter(credito => credito.valortotal > 1000000);
+        //const creditosFiltrados = creditos.filter(credito => credito.idcredito === 'F1-679137-1');
+        //const creditosFiltrados = creditos.filter(credito => credito.idcredito === 'CUOTA_ACTIVACION_AVAL-185');
+        // const creditosFiltrados = creditos.filter(credito => credito.fuente === 'EDUFAST');
+        const creditosFiltrados = creditos;
 
         // 2. Transformar los datos al formato requerido por la API externa usando una función centralizada
         const creditosTransformados = creditosFiltrados.map(transformarCredito);
@@ -49,14 +52,15 @@ async function enviarCreditosToGiitic() {
 async function verificarYEnviarCredito(credito) {
     try {
         // Verificar si el cliente existe en la API de Giitic
-        const clienteExiste = await verificarClienteEnGiitic(credito.codigodeudor);
+        //credito.idempresa ='170308620248819112351'; //fincovalpruebas
+        // const clienteExiste = await verificarClienteEnGiitic(credito.codigodeudor,credito.idempresa);
 
-        // Si el cliente no existe, crearlo
-        if (!clienteExiste) {
-            console.log(`Cliente ${credito.codigodeudor} no encontrado. Creándolo...`);
-            await crearClienteEnGiitic(credito.codigodeudor);
-            await esperarClienteCreado(credito.codigodeudor);
-        }
+        // // Si el cliente no existe, crearlo
+        // if (!clienteExiste) {
+        //     console.log(`Cliente ${credito.codigodeudor} no encontrado. Creándolo...`);
+        //     await crearClienteEnGiitic(credito.codigodeudor,credito.idempresa);
+        //     await esperarClienteCreado(credito.codigodeudor,credito.idempresa);
+        // }
 
         // Enviar el crédito una vez asegurado que el cliente existe
         return await enviarCreditoToGiitic(credito);
@@ -66,25 +70,27 @@ async function verificarYEnviarCredito(credito) {
     }
 }
 
-async function verificarClienteEnGiitic(codigoDeudor) {
+async function verificarClienteEnGiitic(codigoDeudor,ur) {
     try {
-        const response = await axios.get(`${config.API_URL_GIITIC_CLIENTE}`, {
+        const response = await axios.get(`${config.API_URL_GIITIC_CLI}?ur=${ur}`, {
             params: { codigo: codigoDeudor },
         });
-        return response.status === 200 && response.data.existe;
+        return response.status === 200 && response.data.codigo;
     } catch (err) {
         console.error(`Error al verificar cliente ${codigoDeudor}:`, err.message);
         return false;
     }
 }
 
-async function crearClienteEnGiitic(codigoDeudor) {
+async function crearClienteEnGiitic(codigoDeudor,ur) {
     try {
         const cliente = await clienteModel.obtenerClientePorId(codigoDeudor);
-        const response = await axios.post(config.API_URL_GIITIC_CLIENTE, cliente, {
+        const apiUrl = `${config.API_URL_GIITIC_CLI}?ur=${ur}`;
+        const clienteJson = JSON.stringify(cliente);
+        const response = await axios.post(apiUrl, clienteJson, {
             headers: { 'Content-Type': 'application/json' },
         });
-        if (response.status === 200 && response.data.mensaje === 'Cliente creado') {
+        if (response.status === 201 && response.data.mensaje === 'Cliente creado') {
             console.log(`Cliente ${codigoDeudor} creado exitosamente.`);
         } else {
             throw new Error(`Error al crear cliente ${codigoDeudor}: ${response.data.mensaje}`);
@@ -95,11 +101,11 @@ async function crearClienteEnGiitic(codigoDeudor) {
     }
 }
 
-async function esperarClienteCreado(clienteId) {
+async function esperarClienteCreado(clienteId,ur) {
     let intentos = 0;
 
     while (intentos < MAX_REINTENTOS) {
-        if (await verificarClienteEnGiitic(clienteId)) {
+        if (await verificarClienteEnGiitic(clienteId,ur)) {
             console.log(`Cliente ${clienteId} confirmado en Giitic.`);
             return;
         }
@@ -114,32 +120,55 @@ async function esperarClienteCreado(clienteId) {
 
 async function enviarCreditoToGiitic(credito) {
     try {
+        const ur = credito.idempresa;
+        const apiUrl = `${API_URL_GIITIC_CRE}?ur=${ur}`;
         const creditoJson = JSON.stringify(credito);
-        const response = await axios.post(API_URL_GIITIC_CRE, creditoJson, {
+        const response = await axios.post(apiUrl, creditoJson, {
             headers: { 'Content-Type': 'application/json' },
         });
 
         // Validar respuesta
-        if (response.data.httpResponse === 200 && response.data.mensaje === 'OK') {
-            console.log(`Crédito con consecutivo ${credito.consecutivo || 'N/A'} enviado exitosamente.`);
+        if (response.data.httpResponse === 201 && response.data.mensaje === 'OK') {
+            console.log(`Crédito con consecutivo ${credito.credito.consecutivo || 'N/A'} enviado exitosamente.`);
+            console.log(`DATA CREDITO ENVIADO: ${creditoJson || 'N/A'}`);
             // Marcar como enviados en la base de datos los registros enviados con éxito
-            await creditoModel.marcarComoEnviadoGiitic(credito.consecutivo);
-            return { creditoId: credito.consecutivo || 'N/A', status: 'Enviado' };
+            await creditoModel.marcarComoEnviadoGiitic(credito.credito.consecutivo);
+            return { creditoId: credito.credito.consecutivo || 'N/A', status: 'Enviado' };
         } else {
-            console.error(`Error al enviar crédito ${credito.consecutivo || 'N/A'}: ${response.data.mensaje}`);
-            return { creditoId: credito.consecutivo || 'N/A', status: 'Error', detalle: response.data.mensaje };
+            console.error(`Error al enviar crédito ${credito.credito.consecutivo || 'N/A'}: ${response.data.mensaje}`);
+            return { creditoId: credito.credito.consecutivo || 'N/A', status: 'Error', detalle: response.data.mensaje };
         }
     } catch (err) {
-        console.error(`Error al enviar crédito ${credito.consecutivo || 'N/A'}:`, err.response?.data || err.message);
-        return { creditoId: credito.consecutivo || 'N/A', status: 'Error', detalle: err.response?.data || err.message };
+        console.error(`Error al enviar crédito ${credito.credito.consecutivo || 'N/A'}:`, err.response?.data || err.message);
+        return { creditoId: credito.credito.consecutivo || 'N/A', status: 'Error', detalle: err.response?.data || err.message };
     }
 }
 
 function transformarCredito(credito) {
+    const representante = credito.idrepresentantelegal;
+    let codeudor = credito.idcodeudor;
+
+    if(representante && representante.trim() !== "" && credito.fuente === 'EDUFAST'){
+        //menores de edad envian representantelegal como codeudor
+        codeudor=representante;
+    }
+
+     if(credito.fuente === 'WURTH'){
+         credito.tipodeuda ='Administracion de cartera';
+          // Obtener mes y año actuales
+        const fechaActual = new Date();
+        const mes = String(fechaActual.getMonth() + 1).padStart(2, '0'); // Mes en formato MM
+        const año = String(fechaActual.getFullYear()).slice(-2); // Últimos dos dígitos del año
+
+        //credito.periodoprograma = 'WURTH-1124';
+        credito.periodoprograma = `WURTH-${mes}${año}`;
+     }
     return {
+        idempresa: credito.idempresa,
         codigodeudor: credito.idcliente,
-        codigocodeudor: credito.idcodeudor,
+        codigocodeudor: codeudor,
         credito: {
+            tipoDeuda: credito.tipodeuda,
             clasificacion: credito.clasificacioncredito,
             consecutivo: credito.idcredito || null,
             fechacreacion: formatDate(credito.fechacreacion),
@@ -147,9 +176,6 @@ function transformarCredito(credito) {
             valortotal: credito.valortotal,
             periodicidad: credito.periodicidad,
             numcuotas: credito.numcuotas,
-            interescorriente: credito.interescorriente || 0,
-            diasdegracia: credito.diasdegracia || 0,
-            interesmora: credito.interesmora || 0,
             observaciones: credito.observaciones || null,
             idTerceroIntermediario: credito.idtercerointermediario || null,
             insitucion: credito.institucion || null,

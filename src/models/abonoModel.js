@@ -28,7 +28,6 @@ async function agregarAbono(datos) {
         datos.formapago,
         datos.valor,
         datos.observaciones,
-        datos.fecharegistro,
     ];
     await pool.query(query, values);
 }
@@ -43,8 +42,7 @@ async function actualizarAbono(id, datos) {
             fechaasiento = ?, 
             formapago = ?, 
             valor = ?, 
-            observaciones = ?, 
-            fecharegistro = ?
+            observaciones = ?
         WHERE idtransaccion = ?
     `;
     const values = [
@@ -54,10 +52,24 @@ async function actualizarAbono(id, datos) {
         datos.formapago,
         datos.valor,
         datos.observaciones,
-        datos.fecharegistro,
         id,
     ];
-    await pool.query(query, values);
+    try {
+        const [result] = await pool.query(query, values);
+
+        if (result.affectedRows === 0) {
+            throw new Error(`No se encontró un abono con idtransaccion = ${id}`);
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Error al actualizar el abono:', error.message);
+        console.log('SQL Query:', query);
+        console.log('Valores:', values);
+        const formattedSQL = query.replace(/\?/g, (_, i) => `'${values[i]}'`);
+        console.log('SQL Final:', formattedSQL);
+        throw new Error('Error al actualizar el abono en la base de datos.');
+    }
 }
 
 // Eliminar un abono
@@ -81,7 +93,7 @@ async function obtenerRegistrosPendientesGiitic() {
  * @returns {Promise<void>} 
  */
 async function marcarComoEnviadoGiitic(id) {
-    const query = "UPDATE abono SET giitic = 'S' WHERE idabono = ?";
+    const query = "UPDATE abono SET giitic = 'S' WHERE idtransaccion = ?";
     await pool.query(query, [id]);
 }
 

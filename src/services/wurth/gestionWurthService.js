@@ -2,9 +2,11 @@ const axios = require('axios');
 const gestionModel = require('../../models/gestionModel'); // Modelo para interactuar con la tabla 'gestion'
 const { obtenerToken } = require('../../models/authtokenModel');
 const config = require('../../config/config');
+const { format } = require('date-fns');
 
 // URL de la API para enviar datos de gestión
 const API_URL_GESTION = config.API_URL_WGC;
+const LLAVE_FINCOVAL = config.LLAVE_FINCOVAL;
 
 /**
  * Envía un lote de datos a la API externa.
@@ -34,11 +36,17 @@ async function enviarLoteDatos(lote) {
                 'DOLAPIKEY': tokenData.token, // Token necesario para autenticarse
             };
 
+            registro.idempresa = LLAVE_FINCOVAL;
+            registro.fechagestion = formatDate(registro.fechagestion);
+            registro.fecharegistro = formatDate(registro.fecharegistro);
+
             // Llamada POST a la API con los datos del registro
-            const response = await axios.post(API_URL_GESTION, registro , { headers });
+            const registroJson = JSON.stringify(registro);
+            const response = await axios.post(API_URL_GESTION, registroJson , { headers });
 
             if (response.status === 200 || response.status === 201) {
                 resultados.push({ idgestion: registro.idgestion, status: 'enviado' });
+                console.log(`DATA GESTION ENVIADO: ${registroJson || 'N/A'}`);
             } else {
                 errores.push({
                     idgestion: registro.idgestion,
@@ -103,6 +111,10 @@ async function sincronizarGestion() {
     } catch (err) {
         console.error('Error durante la sincronización de gestión:', err);
     }
+}
+
+function formatDate(fecha) {
+    return format(new Date(fecha), 'yyyy-MM-dd');
 }
 
 module.exports = {

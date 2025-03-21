@@ -35,7 +35,7 @@ async function obtenerCreditosDeWurth() {
             params: {
                 sortfield: 'siret',
                 sortorder: 'ASC',
-                limit: 100
+                limit: 100000
             }
         });
 
@@ -87,6 +87,9 @@ async function sincronizarCreditos() {
                         credito = sanitizeObject(credito); // Corregir valores vacíos
                         credito.fuente = 'WURTH';
                         credito.clasificacioncredito = 'ADMINCAR';
+                        credito.tipodeuda = 'Administracion de cartera';
+                        credito.idtercerointermediario= 'WURTH';
+                        
                         const clienteAsociado = await terceroModel.obtenerClientePorId(credito.idcliente);
 
                         if (!clienteAsociado) {
