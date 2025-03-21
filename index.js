@@ -12,13 +12,13 @@ app.use(express.json()); // Middleware para procesar JSON
 app.use('/clientes', clienteRoutes); // Ruta base para clientes
 app.use('/creditos', creditoRoutes); // Ruta base para creditos
 
-const PORT = 3000;
+const PORT = 3003;
 
 // Cargar certificados
-/* const httpsOptions = {
+const httpsOptions = {
     key: fs.readFileSync('/etc/apache2/sites-available/579368b08321b366.key'), // Ruta al archivo de clave privada
     cert: fs.readFileSync('/etc/apache2/sites-available/579368b08321b366.crt') // Ruta al certificado
-}; */
+}; 
 
 app.get('/', (req, res) => {
     res.send('¡Hola, mundo Neo..');
@@ -55,11 +55,11 @@ app.get('/bitgiitic', async (req, res) => {
 
 
 // inicio servidor HTTPS
-/* https.createServer(httpsOptions, app).listen(PORT, () => {
+https.createServer(httpsOptions, app).listen(PORT, () => {
     console.log(`Servidor HTTPS corriendo en https://localhost:${PORT}`);
-}); */
+}); 
 
 // Inicio del servidor HTTP ,desarrollo
-app.listen(PORT, () => {
+/*app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
-});
+});*/
